@@ -143,8 +143,8 @@ def _emit_env_gate(
     fix = (
         "set the flag in a dedicated job, or delete the test and record the decision"
         if verdict == VOID
-        else "the flag is documented for manual runs only — add a CI job that sets "
-             "it, so the guard is observed to run without a human remembering"
+        else "runnable by hand, never run by machine — add a CI job that sets the "
+             "flag, so the guard is observed to run without a human remembering"
     )
     return Finding(
         rule="R1a",

@@ -41,8 +41,8 @@ class EnvSearch:
         )
         if self.docs_hits and not self.executable_hits:
             base += (
-                f"; mentioned in {len(self.docs_hits)} docs file(s) — documented "
-                "manual invocation only, never set in any executable path"
+                f"; mentioned in {len(self.docs_hits)} docs file(s) — runnable by "
+                "hand, never run by machine (set in no executable path)"
             )
         return base
 

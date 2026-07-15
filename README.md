@@ -8,7 +8,10 @@ core integrity guard that had silently skipped in CI since inception; a type
 gate that passed vacuously because it couldn't see the project's own types; an
 env var silently dropped by the interpreter flag next to it; a nullable verdict;
 a field nothing persisted; a scheduled job that had never fired; and a human
-approval gate routed around by momentum. Every one of them was green.
+approval gate routed around by momentum. Every one of them was green. (Six were
+found committed; the vacuous type gate was caught in-flight and never reached a
+commit — the scanner's proof for that one is a labeled reconstruction of the
+avoided trap. The tool about overclaiming does not round up.)
 
 `voidguard` is the generalization of the sweep that found them. It scans a
 checkout and answers **one question per guard, and only that question**:
@@ -28,6 +31,10 @@ guard.**
 pip install voidguard
 voidguard scan .
 ```
+
+> Not on PyPI yet: publication is gated on extracting this package to its own
+> repository first — a published package never points into another project's
+> `tools/` directory. Until then: `pip install "voidguard @ git+https://github.com/driivai/promethyn#subdirectory=tools/voidguard"`.
 
 Exit codes: `0` clean, `1` findings, `2` scanner error — gate CI without
 wrapping. `--fail-on {any,warn,void,never}` picks the severity that trips the
