@@ -32,9 +32,9 @@ pip install voidguard
 voidguard scan .
 ```
 
-> Not on PyPI yet: publication is gated on extracting this package to its own
-> repository first — a published package never points into another project's
-> `tools/` directory. Until then: `pip install "voidguard @ git+https://github.com/driivai/voidguard"`.
+Requires Python 3.11+ — on an older interpreter (stock macOS ships 3.9),
+`pip install voidguard` fails with "No matching distribution found"; that is
+the version floor, not a broken package.
 
 Exit codes: `0` clean, `1` findings, `2` scanner error — gate CI without
 wrapping. `--fail-on {any,warn,void,never}` picks the severity that trips the
