@@ -85,18 +85,47 @@ probes are aggregated into a single UNKNOWN instead of one alarm per test.
 
 ## The GitHub Action
 
+Paste this into `.github/workflows/voidguard.yml`. No edits needed — not a
+token, not an input, nothing:
+
 ```yaml
-- uses: driivai/voidguard@main
-  with:
-    fail-on: none        # report-only by default; set to "void" to gate
-    baseline: .voidguard-baseline.json
+name: voidguard
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: driivai/voidguard@v0
 ```
 
-It comments on the PR. The first line of the comment is the whole point:
+Every pull request gets one comment, updated in place on new pushes. The
+first line is the whole point:
 
 > **N guards in this repo have never been observed to fail.**
 
-The Action never fails the build unless you opt in with `fail-on`.
+A clean repo still gets its comment — **VoidGuard found no void guards ✓** —
+because silence reads as broken, and this is a tool about checks you can
+observe working.
+
+**Report-only is the default.** The Action never fails your build unless you
+opt in — a scanner that breaks a stranger's build on first install gets
+uninstalled within the hour, and deserves it. When your repo is clean (or
+baselined), make it a gate:
+
+```yaml
+      - uses: driivai/voidguard@v0
+        with:
+          fail-on: void                        # or warn, or any
+          baseline: .voidguard-baseline.json   # fail only on NEW findings
+```
+
+Versioning: `@v0` follows the latest 0.x release; `@v0.1.0` pins this exact
+one. The Action installs the published `voidguard==0.1.0` wheel from PyPI —
+the same bytes everyone else runs, not a floating ref.
 
 ## What v0 cannot see (read this before trusting it)
 
