@@ -14,6 +14,9 @@ import urllib.request
 
 MARKER = "<!-- voidguard-report -->"
 ARTICLE = "https://github.com/driivai/promethyn/blob/main/docs/skip-sweep.md"
+SITE = "https://driivai.github.io/voidguard/"
+_COLLAPSE_OVER = 5   # findings tables longer than this fold behind <details>
+_TABLE_CAP = 30      # never render more rows than this; the artifact has the rest
 
 
 def _api(url: str, method: str = "GET", body: dict | None = None):
@@ -28,28 +31,49 @@ def _api(url: str, method: str = "GET", body: dict | None = None):
         return json.loads(resp.read().decode() or "null")
 
 
+def _cell(text: str, limit: int) -> str:
+    text = " ".join(str(text).split()).replace("|", "\\|")
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
 def build_comment(report: dict) -> str:
     counts = report["counts"]
+    findings = report.get("findings", [])
+    baselined = report.get("baselined_suppressed", 0)
     n = counts["VOID"]
-    head = (f"**{n} guard{'s' if n != 1 else ''} in this repo "
-            f"ha{'ve' if n != 1 else 's'} never been observed to fail.**")
+    if findings:
+        head = (f"**{n} guard{'s' if n != 1 else ''} in this repo "
+                f"ha{'ve' if n != 1 else 's'} never been observed to fail.**")
+    else:
+        head = "**VoidGuard found no void guards ✓**"
     lines = [MARKER, head, "",
              f"`voidguard` scan: **{counts['VOID']} VOID**, "
              f"{counts['WARN']} WARN, {counts['UNKNOWN']} UNKNOWN"
-             + (f" ({report.get('baselined_suppressed', 0)} baselined)"
-                if report.get("baselined_suppressed") else "")]
-    findings = report.get("findings", [])
+             + (f" ({baselined} baselined)" if baselined else "")]
     if findings:
-        lines += ["", "| id | verdict | guard | question |", "|---|---|---|---|"]
-        for f in findings[:10]:
-            guard = f["guard"].replace("|", "\\|")[:70]
-            q = f["question"].replace("|", "\\|")[:90]
-            lines.append(f"| {f['id']} | {f['verdict']} | `{guard}` | {q} |")
-        if len(findings) > 10:
-            lines.append(f"| … | | {len(findings) - 10} more in the full report | |")
-    lines += ["", "Full report: the `voidguard-report` artifact on this run.",
-              "", f"_A guard that has never been observed to fail is a guess, "
-              f"not a guard — [the story behind this scanner]({ARTICLE})._"]
+        table = ["| id | verdict | guard | mechanism | evidence |",
+                 "|---|---|---|---|---|"]
+        for f in findings[:_TABLE_CAP]:
+            table.append(f"| {f['id']} | {f['verdict']} | `{_cell(f['guard'], 60)}` "
+                         f"| {_cell(f['mechanism'], 60)} "
+                         f"| {_cell(f['evidence']['summary'], 90)} |")
+        if len(findings) > _TABLE_CAP:
+            table.append(f"| … | | {len(findings) - _TABLE_CAP} more — "
+                         f"see the full report artifact | | |")
+        if len(findings) > _COLLAPSE_OVER:
+            lines += ["", "<details>",
+                      f"<summary>{len(findings)} findings — expand</summary>", ""]
+            lines += table
+            lines += ["", "</details>"]
+        else:
+            lines += [""] + table
+    lines += ["",
+              "Full report: the `voidguard-report` artifact on this run. "
+              "False positive? Baseline it: run `voidguard baseline .` "
+              "and commit `.voidguard-baseline.json`.",
+              "",
+              f"_A guard that has never been observed to fail is a guess, "
+              f"not a guard — [voidguard]({SITE}) · [the story]({ARTICLE})._"]
     return "\n".join(lines)
 
 
