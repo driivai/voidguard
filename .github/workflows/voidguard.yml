@@ -1,0 +1,20 @@
+name: voidguard
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # `uses: ./` runs the Action from THIS checkout, so a PR that edits the
+      # Action is exercised by the Action it ships — not by an older tag
+      - uses: ./
+        with:
+          baseline: .voidguard-baseline.json
