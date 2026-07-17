@@ -3,25 +3,45 @@ description: >-
   Scans the checkout for void guards — checks that are present, plausible, and
   verify nothing — and comments the findings on the pull request. Report-only
   by default; never fails the build unless fail-on is set.
+branding:
+  icon: check-circle
+  color: green
 inputs:
   path:
     description: directory to scan
     default: "."
   fail-on:
-    description: "lowest severity that fails the step: none | void | warn | any"
-    default: "none"
+    description: >-
+      lowest severity that fails the step: never | void | warn | any
+      (report-only by default; "none" is accepted as an alias for never)
+    default: "never"
   baseline:
     description: optional baseline file acknowledging existing findings
     default: ""
+  github-token:
+    description: >-
+      token used to comment on the pull request and read schedule run history;
+      defaults to the workflow's own token, so the drop-in snippet needs no
+      secrets wiring
+    default: ${{ github.token }}
 runs:
   using: composite
   steps:
-    - name: Install voidguard
+    # the runner's default interpreter is not a contract — carry our own,
+    # so the drop-in snippet works on any runner image
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install voidguard (the published package, pinned)
       shell: bash
-      run: pip install --quiet "${{ github.action_path }}"
+      run: pip install --quiet voidguard==0.1.0
 
     - name: Scan (report-only; gating is a separate, explicit step)
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         ARGS=(scan "${{ inputs.path }}" --json voidguard-report.json --fail-on never)
         if [ -n "${{ inputs.baseline }}" ]; then ARGS+=(--baseline "${{ inputs.baseline }}"); fi
@@ -37,10 +57,12 @@ runs:
     - name: Comment on the pull request
       if: github.event_name == 'pull_request'
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: python "${{ github.action_path }}/action_comment.py" voidguard-report.json
 
     - name: Gate (opt-in)
-      if: inputs.fail-on != 'none'
+      if: inputs.fail-on != 'never' && inputs.fail-on != 'none'
       shell: bash
       run: |
         python - "voidguard-report.json" "${{ inputs.fail-on }}" <<'EOF'
