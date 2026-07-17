@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>voidguard — does your green actually check anything?</title>
+<meta name="description" content="voidguard finds void guards: CI checks that are present, plausible, and verify nothing. pip install voidguard.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233fb950'/%3E%3Cpath d='M4.5 8.5l2.5 2.5 4.5-5' stroke='%230b0f14' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #111823; --line: #1f2a38;
+    --text: #dbe4ee; --muted: #8b98a9; --dim: #5c6875;
+    --green: #3fb950; --red: #f85149; --amber: #d29922;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92em;
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
+  section { margin-top: 4.5rem; }
+  h1 { font-size: clamp(1.9rem, 5.5vw, 2.9rem); line-height: 1.15; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--dim); margin-bottom: 1.4rem; font-weight: 600;
+  }
+  p { margin-top: 0.9rem; }
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .muted { color: var(--muted); }
+
+  /* hero */
+  header { padding-top: 4.5rem; }
+  .badge {
+    display: inline-flex; gap: 0.5em; align-items: baseline;
+    color: var(--muted); font-size: 0.85rem; margin-bottom: 1.6rem;
+  }
+  .badge b { color: var(--text); font-weight: 600; }
+  .sub { margin-top: 1.1rem; font-size: 1.1rem; color: var(--muted); max-width: 38rem; }
+
+  /* the lying check motif */
+  .checkrow {
+    margin-top: 2.2rem; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); padding: 0.85rem 1.1rem;
+    display: flex; align-items: center; gap: 0.7rem; max-width: 30rem;
+  }
+  .dot {
+    width: 1.15rem; height: 1.15rem; border-radius: 50%; flex: none;
+    background: var(--green); display: grid; place-items: center;
+    color: #0b0f14; font-size: 0.8rem; font-weight: 800;
+  }
+  .checkrow .lie { color: var(--muted); font-size: 0.9rem; }
+
+  /* code blocks + copy */
+  .snippet { margin-top: 1.6rem; }
+  .snippet .label {
+    font-size: 0.78rem; color: var(--dim); margin-bottom: 0.4rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .codebox {
+    position: relative; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .codebox pre { padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.55; }
+  .codebox .cm { color: var(--dim); }
+  .codebox .k { color: #79c0ff; }
+  .codebox .s { color: #a5d6ff; }
+  button.copy {
+    position: absolute; top: 0.55rem; right: 0.55rem;
+    background: var(--line); color: var(--muted); border: 0; border-radius: 6px;
+    padding: 0.3rem 0.7rem; font-size: 0.78rem; cursor: pointer;
+    font-family: inherit;
+  }
+  button.copy:hover { color: var(--text); }
+
+  /* hook */
+  .hook { border-left: 3px solid var(--line); padding-left: 1.4rem; }
+  .hook p { margin-top: 0.7rem; font-size: 1.15rem; }
+  .hook .h-fail b   { color: var(--red); }
+  .hook .h-absent b { color: var(--amber); }
+  .hook .h-void     { font-weight: 600; }
+  .hook .h-void b   { color: var(--green); }
+
+  /* classes */
+  .classes { display: grid; gap: 0.9rem; margin-top: 0.5rem; }
+  .cls {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+    padding: 0.9rem 1.1rem;
+  }
+  .cls b { display: block; margin-bottom: 0.15rem; }
+  .cls span { color: var(--muted); font-size: 0.95rem; }
+
+  /* honesty */
+  .honesty { border: 1px solid var(--amber); border-radius: 10px; padding: 1.6rem 1.6rem 1.4rem; }
+  .honesty h2 { color: var(--amber); margin-bottom: 1rem; }
+  .honesty ul { margin: 0.9rem 0 0 1.2rem; }
+  .honesty li { margin-top: 0.7rem; }
+  .honesty li b { color: var(--text); }
+
+  ul.plain { list-style: none; }
+  .proof ul { margin-top: 0.9rem; }
+  .proof li { margin-top: 0.4rem; }
+
+  footer {
+    margin-top: 5rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
+    color: var(--dim); font-size: 0.88rem;
+  }
+  footer p { margin-top: 0.4rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="badge mono"><b>voidguard</b> <span id="pypi-ver">0.1.0</span> <span>·</span>
+    <a href="https://pypi.org/project/voidguard/">PyPI</a> <span>·</span>
+    <a href="https://github.com/driivai/voidguard">GitHub</a></div>
+  <h1>Does your green actually check&nbsp;anything?</h1>
+  <p class="sub"><code>voidguard</code> is a static scanner for <em>void guards</em> —
+  checks that are present, plausible, and verify nothing. It asks one question per
+  guard: <em>could this, as configured, ever be observed to fail?</em> — and shows its
+  evidence for every answer.</p>
+
+  <div class="checkrow" role="img" aria-label="A green check that says all checks have passed — and one of them verifies nothing">
+    <span class="dot">✓</span>
+    <span>All checks have passed
+      <span class="lie">— and one of them verifies nothing.</span></span>
+  </div>
+
+  <div class="snippet">
+    <div class="label">Install</div>
+    <div class="codebox">
+      <pre id="c-pip">pip install voidguard
+voidguard scan .</pre>
+      <button class="copy" data-copy="c-pip">copy</button>
+    </div>
+  </div>
+
+  <div class="snippet">
+    <div class="label">Or on every pull request — paste as .github/workflows/voidguard.yml, no edits</div>
+    <div class="codebox">
+      <pre id="c-action"><span class="k">name:</span> voidguard
+<span class="k">on:</span> [<span class="s">pull_request</span>]
+<span class="k">permissions:</span>
+  <span class="k">contents:</span> <span class="s">read</span>
+  <span class="k">pull-requests:</span> <span class="s">write</span>
+<span class="k">jobs:</span>
+  <span class="k">scan:</span>
+    <span class="k">runs-on:</span> <span class="s">ubuntu-latest</span>
+    <span class="k">steps:</span>
+      - <span class="k">uses:</span> <span class="s">actions/checkout@v4</span>
+      - <span class="k">uses:</span> <span class="s">driivai/voidguard@v0</span></pre>
+      <button class="copy" data-copy="c-action">copy</button>
+    </div>
+    <p class="muted" style="font-size:0.9rem; margin-top:0.6rem">
+      Report-only by default — it comments findings on the PR and never fails
+      your build unless you opt in with <code>fail-on</code>. Requires Python 3.11+
+      for the CLI; the Action brings its own.</p>
+  </div>
+</header>
+
+<section class="hook">
+  <p class="h-fail">A guard that <b>fails</b> is doing its job.</p>
+  <p class="h-absent">A guard that's <b>absent</b> is at least honest.</p>
+  <p class="h-void">The dangerous one runs, reports <b>green</b>, and verifies nothing.</p>
+</section>
+
+<section>
+  <h2>What it catches</h2>
+  <div class="classes">
+    <div class="cls"><b>1 · Tests that never run</b>
+      <span>Skips gated on an environment flag that is set nowhere your repo actually
+      runs; markers every CI invocation deselects; go, rust and js best-effort.</span></div>
+    <div class="cls"><b>2 · Type gates that check nothing</b>
+      <span>A mypy that cannot see your own types and passes vacuously; imports
+      skipped; check targets matching no files; a weak tsconfig behind an advertised
+      typecheck.</span></div>
+    <div class="cls"><b>3 · Settings silently discarded</b>
+      <span>PYTHON* variables handed to <code>python -I</code>/<code>-E</code>, which
+      drop them; workflow env set and never read; a Docker ARG consumed after FROM
+      without re-declaration.</span></div>
+    <div class="cls"><b>4 · CI conditions that cannot fire</b>
+      <span>An <code>if:</code> requiring an event the workflow's triggers never
+      deliver; schedules with no run on the record; golden-file assertions whose path
+      matches nothing.</span></div>
+  </div>
+  <p class="muted">Every verdict — <span class="mono">VOID</span>,
+  <span class="mono">WARN</span>, or an honest <span class="mono">UNKNOWN</span> —
+  carries its enumerated search set: what was searched, what was found, absent
+  conventional locations named as absent. A tool about unverified claims does not
+  get to make any.</p>
+</section>
+
+<section class="honesty">
+  <h2>What it cannot catch</h2>
+  <p>The taxonomy this tool comes from has <b>seven</b> instance-types. voidguard v0
+  detects the shapes of <b>four</b>. It would not have caught the other three:</p>
+  <ul>
+    <li><b>Semantic voids</b> — a verdict typed nullable so “nothing” can be mistaken
+    for a value, or a field the code carries but nothing ever persists. These need
+    type-flow and data-flow analysis, not file-shape analysis.</li>
+    <li><b>Process voids</b> — a human approval gate that a merge routed around while
+    every check was green. No scanner catches a decision that nobody waited for.</li>
+    <li><b>Anything requiring execution</b> — voidguard never runs your code. A guard
+    that runs and is <em>wrong</em> is outside its question; it only asks whether a
+    guard could ever be observed to fail at all.</li>
+  </ul>
+  <p>Where static analysis cannot decide, the verdict is <span class="mono">UNKNOWN</span>
+  with the reason — because a scanner that overclaims void guards is itself a void
+  guard.</p>
+</section>
+
+<section class="proof">
+  <h2>Where it comes from</h2>
+  <p>In one week, one repository turned up <b>seven guards that were present,
+  plausible, and void</b> — a core integrity test that had silently skipped in CI
+  since inception, a type gate that passed while checking nothing, an approval step
+  a merge walked straight past. Every one of them was green. voidguard is the
+  generalization of the sweep that found them.</p>
+  <ul class="plain">
+    <li>→ <a href="https://github.com/driivai/promethyn/blob/main/docs/skip-sweep.md">The story: the skip-sweep that found seven</a></li>
+    <li>→ <a href="https://pypi.org/project/voidguard/">voidguard on PyPI</a></li>
+    <li>→ <a href="https://github.com/driivai/voidguard">Source on GitHub</a></li>
+  </ul>
+</section>
+
+<footer>
+  <p>Apache-2.0 · William Nunlist ·
+    <a href="https://github.com/driivai/voidguard">GitHub</a> ·
+    <a href="https://pypi.org/project/voidguard/">PyPI</a></p>
+  <p>This page is one static file. No tracking, no cookies, no analytics —
+  the only request it makes is to PyPI for the version number, and it works
+  fine without it.</p>
+</footer>
+
+</main>
+<script>
+  document.querySelectorAll("button.copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = document.getElementById(btn.dataset.copy).textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "copied";
+        setTimeout(function () { btn.textContent = "copy"; }, 1600);
+      });
+    });
+  });
+  fetch("https://pypi.org/pypi/voidguard/json")
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.info && d.info.version)
+        document.getElementById("pypi-ver").textContent = d.info.version;
+    })
+    .catch(function () { /* static 0.1.0 stays — it is true today */ });
+</script>
+</body>
+</html>
