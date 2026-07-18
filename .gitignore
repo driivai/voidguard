@@ -1,7 +1,13 @@
 __pycache__/
+*.pyc
 *.egg-info/
 .pytest_cache/
 dist/
 build/
 .venv/
 voidguard-report.json
+
+# editor and OS noise
+.DS_Store
+.idea/
+.vscode/
